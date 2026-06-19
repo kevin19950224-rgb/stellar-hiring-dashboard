@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stellar Signature — Hiring Intelligence Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #1a1a2e; color: #f0e6c8; min-height: 100vh; padding: 20px; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid #c9a84c; }
+.header h1 { font-size: 1.2rem; color: #c9a84c; letter-spacing: 1px; }
+.header-meta { font-size: 0.68rem; color: #b0a080; margin-top: 4px; line-height: 1.6; }
+.header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.badge { background: #c9a84c20; border: 1px solid #c9a84c66; color: #c9a84c; padding: 4px 12px; border-radius: 20px; font-size: 0.66rem; white-space: nowrap; }
+.refresh-btn { background: #232340; border: 1px solid #c9a84c55; color: #c9a84c; padding: 5px 14px; border-radius: 20px; font-size: 0.68rem; cursor: pointer; transition: all 0.2s; }
+.refresh-btn:hover { background: #c9a84c; color: #1a1a2e; font-weight: 700; }
+.last-updated { font-size: 0.6rem; color: #666; text-align: right; }
+.loading-overlay { position: fixed; inset: 0; background: #1a1a2eee; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
+.spinner { width: 40px; height: 40px; border: 3px solid #c9a84c33; border-top-color: #c9a84c; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: #c9a84c; font-size: 0.85rem; }
+.loading-sub { color: #888; font-size: 0.7rem; margin-top: 6px; }
+.config-banner { background: #2a1a1a; border: 1px solid #f08080; border-radius: 10px; padding: 20px; margin-bottom: 20px; display: none; }
+.config-banner h3 { color: #f08080; font-size: 0.85rem; margin-bottom: 10px; }
+.config-banner p { color: #d0c8b0; font-size: 0.72rem; line-height: 1.7; }
+.config-banner code { background: #1a1a2e; color: #c9a84c; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+.filter-label { font-size: 0.68rem; color: #b0a080; }
+.filter-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid #c9a84c55; background: transparent; color: #c9a84c; cursor: pointer; font-size: 0.7rem; transition: all 0.2s; }
+.filter-btn.active { background: #c9a84c; color: #1a1a2e; font-weight: 700; }
+.filter-btn:hover:not(.active) { background: #c9a84c22; }
+.filter-sep { width: 1px; height: 20px; background: #c9a84c33; margin: 0 4px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 16px; }
+.kpi-card { background: #232340; border-radius: 10px; padding: 14px; border: 1px solid #c9a84c22; position: relative; overflow: hidden; }
+.kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background: linear-gradient(90deg, #c9a84c, #e8c96d); }
+.kpi-label { font-size: 0.6rem; color: #b0a080; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.kpi-value { font-size: 1.8rem; font-weight: 700; color: #c9a84c; }
+.kpi-sub { font-size: 0.62rem; color: #888; margin-top: 3px; }
+.charts-grid { display: grid; grid-template-columns: 3fr 1.2fr; gap: 14px; margin-bottom: 14px; }
+.charts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.chart-card { background: #232340; border-radius: 10px; padding: 16px; border: 1px solid #c9a84c22; }
+.chart-title { font-size: 0.68rem; color: #c9a84c; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; font-weight: 700; }
+.bar-chart { display: flex; flex-direction: column; gap: 7px; }
+.bar-row { display: flex; align-items: center; gap: 8px; }
+.bar-label { font-size: 0.6rem; color: #b0a080; width: 100px; text-align: right; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { flex:1; background:#1a1a2e; border-radius:3px; height:14px; }
+.bar-fill { height:100%; border-radius:3px; min-width:4px; }
+.bar-val { font-size: 0.62rem; color: #c9a84c; min-width: 24px; }
+.donut-wrap { display: flex; align-items: center; gap: 16px; }
+.donut-legend { display: flex; flex-direction: column; gap: 8px; }
+.legend-item { display: flex; align-items: flex-start; gap: 8px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
+.funnel-step { margin-bottom: 6px; text-align: center; }
+.funnel-label { font-size: 0.6rem; color: #b0a080; margin-bottom: 3px; }
+.funnel-bar { border-radius: 4px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; margin: 0 auto; min-width: 80px; }
+.insight-box { background: #1a1a2e; border-left: 3px solid #c9a84c; border-radius: 0 6px 6px 0; padding: 8px 12px; margin-top: 12px; font-size: 0.64rem; color: #c8b888; line-height: 1.6; }
+.job-table { width:100%; border-collapse:collapse; }
+.job-table th { font-size: 0.6rem; color: #c9a84c; text-transform: uppercase; letter-spacing: 0.8px; padding: 8px; border-bottom: 1px solid #c9a84c33; text-align: left; font-weight: 700; white-space: nowrap; }
+.job-table td { font-size: 0.63rem; padding: 7px 8px; border-bottom: 1px solid #ffffff08; color: #d0c8b0; }
+.job-table tr:hover td { background: #c9a84c08; }
+.brand-tag { padding:2px 8px; border-radius:10px; font-size:0.58rem; font-weight:700; }
+.brand-NLS { background:#c9a84c22; color:#c9a84c; border:1px solid #c9a84c44; }
+.brand-MT  { background:#4c7ac922; color:#7ab4f0; border:1px solid #4c7ac966; }
+.brand-GNH { background:#4cc97a22; color:#7af0b4; border:1px solid #4cc97a66; }
+.status-open { color:#7af0b4; font-weight:600; }
+.status-closed { color:#f08080; }
+.setup-card { background: #232340; border-radius: 10px; padding: 20px; border: 1px solid #c9a84c44; margin-top: 14px; }
+.setup-title { font-size: 0.8rem; color: #c9a84c; font-weight: 700; margin-bottom: 14px; }
+.setup-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.setup-step { background: #1a1a2e; border-radius: 8px; padding: 12px; border: 1px solid #c9a84c22; }
+.step-num { font-size: 1.2rem; color: #c9a84c; font-weight: 700; margin-bottom: 6px; }
+.step-title { font-size: 0.68rem; color: #d0c8b0; font-weight: 700; margin-bottom: 4px; }
+.step-desc { font-size: 0.6rem; color: #888; line-height: 1.5; }
+.step-desc code { background:#232340; color:#c9a84c; padding:1px 4px; border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">Loading hiring data...</div>
+  <div class="loading-sub" id="loading-sub">Connecting to Google Sheets</div>
+</div>
+
+<div class="config-banner" id="config-banner">
+  <h3>⚙️ One-time setup needed — 2 values to fill in</h3>
+  <p>
+    Open this HTML file in Notepad and replace the two placeholders near the bottom of the file:<br><br>
+    1. <code>YOUR_SHEET_ID</code> — found in your Google Sheet URL:<br>
+    &nbsp;&nbsp;&nbsp;<code>docs.google.com/spreadsheets/d/<b>COPY_THIS_PART</b>/edit</code><br><br>
+    2. <code>YOUR_API_KEY</code> — from Google Cloud Console → APIs &amp; Services → Credentials → Create API Key<br>
+    &nbsp;&nbsp;&nbsp;(Make sure Google Sheets API is enabled. Set HTTP referrer restriction to your GitHub Pages URL later.)<br><br>
+    Save the file, reload — dashboard will connect to live data automatically.
+  </p>
+</div>
+
+<div class="header">
+  <div>
+    <h1>⭐ STELLAR SIGNATURE — HIRING INTELLIGENCE DASHBOARD</h1>
+    <div class="header-meta" id="header-meta">Connecting to live data source...</div>
+  </div>
+  <div class="header-right">
+    <div class="badge" id="live-badge">🔄 Connecting...</div>
+    <button class="refresh-btn" onclick="loadData()">↺ Refresh Now</button>
+    <div class="last-updated" id="last-updated"></div>
+  </div>
+</div>
+
+<div class="filters">
+  <span class="filter-label">Brand:</span>
+  <button class="filter-btn active" id="fb-ALL" onclick="setFilter('brand','ALL')">All Brands</button>
+  <button class="filter-btn" id="fb-NLS" onclick="setFilter('brand','NLS')">NLS</button>
+  <button class="filter-btn" id="fb-MT"  onclick="setFilter('brand','MT')">Mee Tarik</button>
+  <button class="filter-btn" id="fb-GNH" onclick="setFilter('brand','GNH')">GNH</button>
+  <div class="filter-sep"></div>
+  <span class="filter-label">Role:</span>
+  <button class="filter-btn active" id="fr-ALL"  onclick="setFilter('role','ALL')">All Roles</button>
+  <button class="filter-btn" id="fr-Crew" onclick="setFilter('role','Crew')">Crew</button>
+  <button class="filter-btn" id="fr-PIC"  onclick="setFilter('role','PIC')">PIC / Supervisor</button>
+  <div class="filter-sep"></div>
+  <span class="filter-label">Month:</span>
+  <select id="month-filter" onchange="setMonthFilter(this.value)" style="background:#232340;border:1px solid #c9a84c44;color:#f0e6c8;padding:5px 10px;border-radius:20px;font-size:0.7rem;cursor:pointer;">
+    <option value="ALL">All Months</option>
+  </select>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi-card"><div class="kpi-label">Total Impressions</div><div class="kpi-value" id="kpi-impressions">—</div><div class="kpi-sub">Job ad views on Indeed</div></div>
+  <div class="kpi-card"><div class="kpi-label">Total Clicks</div><div class="kpi-value" id="kpi-clicks">—</div><div class="kpi-sub" id="kpi-ctr">CTR: —</div></div>
+  <div class="kpi-card"><div class="kpi-label">Total Applies</div><div class="kpi-value" id="kpi-applies">—</div><div class="kpi-sub" id="kpi-cvr">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Active Postings</div><div class="kpi-value" id="kpi-open">—</div><div class="kpi-sub" id="kpi-closed">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Apply Rate</div><div class="kpi-value" id="kpi-ar">—</div><div class="kpi-sub">Impression → Apply</div></div>
+</div>
+
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="chart-title">📈 Weekly Trend — Clicks vs Applies</div>
+    <svg id="weekly-chart" width="100%" height="160" viewBox="0 0 560 160" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">🏷 Brand Share (Impressions)</div>
+    <div class="donut-wrap" id="donut-wrap" style="margin-top:6px;"></div>
+  </div>
+</div>
+
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="chart-title">🔽 Candidate Funnel</div>
+    <div id="funnel"></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">📅 Applies by Day of Week</div>
+    <div class="bar-chart" id="dow-chart"></div>
+    <div class="insight-box" id="dow-insight"></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">🏆 Top Jobs by Applies</div>
+    <div class="bar-chart" id="top-jobs-chart"></div>
+  </div>
+</div>
+
+<div class="chart-card">
+  <div class="chart-title">📋 Full Job Posting Performance</div>
+  <div style="overflow-x:auto;">
+    <table class="job-table">
+      <thead><tr>
+        <th>Job Title</th><th>Brand</th><th>Role</th><th>Status</th>
+        <th>Impressions</th><th>Clicks</th><th>CTR</th>
+        <th>Apply Starts</th><th>Applies</th><th>Apply Rate</th><th>Signal</th>
+      </tr></thead>
+      <tbody id="job-table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="setup-card">
+  <div class="setup-title">🔗 FULL PIPELINE — How Everything Connects</div>
+  <div class="setup-grid">
+    <div class="setup-step"><div class="step-num">1</div><div class="step-title">Cowork Scrapes Indeed</div><div class="step-desc">Runs at 6am via Task Scheduler. Saves <code>indeed_export.csv</code> to your local PC folder automatically.</div></div>
+    <div class="setup-step"><div class="step-num">2</div><div class="step-title">Pipeline Script Enriches</div><div class="step-desc"><code>stellar_pipeline.py</code> tags Brand, Role, Day, Week — deduplicates — updates local Master CSV. Chained to run right after Cowork.</div></div>
+    <div class="setup-step"><div class="step-num">3</div><div class="step-title">Pushed to Google Sheets</div><div class="step-desc">Same script pushes the full updated Master to your Google Sheet via the Sheets API. No manual upload ever.</div></div>
+    <div class="setup-step"><div class="step-num">4</div><div class="step-title">Dashboard Reads Live</div><div class="step-desc">This page fetches from Google Sheets on every load. Hit <b>Refresh Now</b> anytime to pull the latest data instantly.</div></div>
+    <div class="setup-step"><div class="step-num">5</div><div class="step-title">Share With Anyone</div><div class="step-desc">Host on GitHub Pages — anyone with the link sees live data. No login, no Excel, no manual updates ever again.</div></div>
+    <div class="setup-step"><div class="step-num">6</div><div class="step-title">Configure This File</div><div class="step-desc">Open in Notepad. Find <code>YOUR_SHEET_ID</code> and <code>YOUR_API_KEY</code> — replace with your real values. Done.</div></div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+//  CONFIGURATION — Replace these two values with yours
+// ================================================================
+const SHEET_ID = "1FsSl8xPeln9suqKys5GLJTu0-pWBYwoTB-H7F6fabiA";
+const API_KEY  = "AIzaSyCfUDtFPcpGdCR4-mcL03K4NkUs70akayU";
+const TAB_NAME = "MASTER_HIRING_LIST";
+// ================================================================
+
+const BRAND_COLORS = { NLS:'#c9a84c', MT:'#7ab4f0', GNH:'#7af0b4' };
+const BRAND_LABELS = { NLS:'Nasi Lemak Shop', MT:'Mee Tarik', GNH:'Go Noodle House' };
+const DOW_ORDER = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+let ALL_DATA = [];
+let state = { brand:'ALL', role:'ALL', month:'ALL' };
+
+function tagBrand(job) {
+  if (!job) return 'NLS';
+  const j = job.toLowerCase();
+  if (j.includes('mee tarik')) return 'MT';
+  if (j.includes('non-halal') || j.includes('go noodle')) return 'GNH';
+  return 'NLS';
+}
+function tagRole(job) {
+  if (!job) return 'Crew';
+  const j = job.toLowerCase();
+  return (j.includes('supervisor') || j.includes('team lead')) ? 'PIC' : 'Crew';
+}
+
+async function loadData() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('live-badge').textContent = '🔄 Refreshing...';
+
+  if (SHEET_ID === 'YOUR_SHEET_ID' || API_KEY === 'YOUR_API_KEY') {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('config-banner').style.display = 'block';
+    document.getElementById('live-badge').textContent = '⚙️ Setup needed — showing demo data';
+    loadDemoData(); return;
+  }
+
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${TAB_NAME}?key=${API_KEY}`;
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const rows = json.values || [];
+    if (rows.length < 2) throw new Error('Sheet appears empty');
+    const headers = rows[0];
+    ALL_DATA = rows.slice(1).map(row => {
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = row[i] || '');
+      if (!obj['Brand'])    obj['Brand']    = tagBrand(obj['Job']);
+      if (!obj['Job post']) obj['Job post'] = tagRole(obj['Job']);
+      obj._impressions = parseFloat(obj['Impressions'])  || 0;
+      obj._clicks      = parseFloat(obj['Clicks'])       || 0;
+      obj._applyStarts = parseFloat(obj['Apply starts']) || 0;
+      obj._applies     = parseFloat(obj['Applies'])      || 0;
+      obj._date  = new Date(obj['Data Date']);
+      obj._month = isNaN(obj._date) ? '' : obj._date.toLocaleString('default',{month:'short'});
+      return obj;
+    }).filter(r => r['Job']);
+
+    populateMonthFilter();
+    renderAll();
+    document.getElementById('live-badge').textContent = '🟢 Live · Google Sheets';
+    document.getElementById('last-updated').textContent = 'Last refreshed: ' + new Date().toLocaleTimeString('en-MY');
+    const dates = ALL_DATA.map(r=>r._date).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
+    const fmt = d => d.toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric'});
+    if (dates.length) document.getElementById('header-meta').textContent =
+      `${fmt(dates[0])} – ${fmt(dates[dates.length-1])}  ·  Indeed Malaysia  ·  ${ALL_DATA.length.toLocaleString()} rows`;
+  } catch(e) {
+    document.getElementById('live-badge').textContent = '⚠️ Load error — showing demo';
+    document.getElementById('last-updated').textContent = 'Error: ' + e.message;
+    loadDemoData();
+  }
+  document.getElementById('loading').style.display = 'none';
+}
+
+function loadDemoData() {
+  const demoJobs = [
+    {job:'Part time @ Mee Tarik Jalan Sultan KL Centre (RM20/hr)',brand:'MT',post:'Crew',status:'Open',imp:5310,clk:676,as_:76,app:55},
+    {job:'FT/PT Service Crew @ Mee Tarik Jalan Sultan KL',brand:'MT',post:'Crew',status:'Open',imp:3251,clk:265,as_:70,app:43},
+    {job:'Part time @ Nasi Lemak Shop Jaya One',brand:'NLS',post:'Crew',status:'Open',imp:1802,clk:211,as_:31,app:16},
+    {job:'Waiter/Waitress @ Jaya One (PJ)',brand:'NLS',post:'Crew',status:'Open',imp:1095,clk:102,as_:24,app:20},
+    {job:'Kitchen Supervisor @ Nasi Lemak Shop Retail',brand:'NLS',post:'PIC',status:'Open',imp:669,clk:36,as_:12,app:9},
+    {job:'Kitchen Supervisor @ Nasi Lemak Shop',brand:'NLS',post:'PIC',status:'Open',imp:581,clk:33,as_:11,app:9},
+    {job:'Restaurant Cashier',brand:'NLS',post:'Crew',status:'Open',imp:553,clk:57,as_:10,app:8},
+    {job:'Full Time F&B Crew @ Jaya One (PJ)',brand:'NLS',post:'Crew',status:'Open',imp:512,clk:29,as_:6,app:4},
+    {job:'Service Crew @ Go Noodle House (Non-Halal)',brand:'GNH',post:'Crew',status:'Open',imp:229,clk:7,as_:0,app:0},
+    {job:'Kitchen Supervisor @ Near LRT Asia Jaya',brand:'NLS',post:'PIC',status:'Open',imp:458,clk:20,as_:8,app:7},
+  ];
+  const months = ['Apr','Apr','Apr','Apr','May','May','May','Jun','Jun','Jun'];
+  ALL_DATA = [];
+  demoJobs.forEach((j,ji) => {
+    for (let w=0; w<8; w++) {
+      const d = new Date(2026, 3+Math.floor(w/3), (w%4)*7+1);
+      ALL_DATA.push({
+        'Job': j.job, 'Brand': j.brand, 'Job post': j.post, 'Job status': j.status,
+        'Data Date': d.toLocaleDateString(),
+        _impressions: Math.round(j.imp/8), _clicks: Math.round(j.clk/8),
+        _applyStarts: Math.round(j.as_/8), _applies: Math.round(j.app/8),
+        _date: d, _month: d.toLocaleString('default',{month:'short'})
+      });
+    }
+  });
+  document.getElementById('header-meta').textContent = 'DEMO MODE — Fill in SHEET_ID and API_KEY to connect live data · Real data: 862 rows, Apr–Jun 2026';
+  populateMonthFilter();
+  renderAll();
+}
+
+function populateMonthFilter() {
+  const months = [...new Set(ALL_DATA.map(r=>r._month).filter(Boolean))];
+  const sel = document.getElementById('month-filter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="ALL">All Months</option>';
+  months.forEach(m => { const o=document.createElement('option'); o.value=m; o.textContent=m; if(m===cur)o.selected=true; sel.appendChild(o); });
+}
+
+function setFilter(type, val) {
+  state[type] = val;
+  const map = { brand:['ALL','NLS','MT','GNH'], role:['ALL','Crew','PIC'] };
+  map[type].forEach(v => { const el=document.getElementById((type==='brand'?'fb-':'fr-')+v); if(el) el.classList.toggle('active',v===val); });
+  renderAll();
+}
+function setMonthFilter(val) { state.month=val; renderAll(); }
+
+function filtered() {
+  return ALL_DATA.filter(r => {
+    if(state.brand!=='ALL' && r.Brand!==state.brand) return false;
+    if(state.role!=='ALL' && r['Job post']!==state.role) return false;
+    if(state.month!=='ALL' && r._month!==state.month) return false;
+    return true;
+  });
+}
+
+function sumBy(arr,f){ return arr.reduce((s,r)=>s+(r[f]||0),0); }
+function groupBy(arr,fn){ return arr.reduce((a,r)=>{ const k=fn(r); if(!a[k])a[k]={key:k,rows:[]}; a[k].rows.push(r); return a; },{}); }
+
+function renderKPIs() {
+  const rows=filtered();
+  const imp=sumBy(rows,'_impressions'), clk=sumBy(rows,'_clicks'), app=sumBy(rows,'_applies');
+  const openJ=[...new Set(rows.filter(r=>r['Job status']==='Open').map(r=>r['Job']))].length;
+  const closedJ=[...new Set(rows.filter(r=>r['Job status']==='Closed').map(r=>r['Job']))].length;
+  document.getElementById('kpi-impressions').textContent=imp.toLocaleString();
+  document.getElementById('kpi-clicks').textContent=clk.toLocaleString();
+  document.getElementById('kpi-applies').textContent=app.toLocaleString();
+  document.getElementById('kpi-ctr').textContent='CTR: '+(imp>0?(clk/imp*100).toFixed(1):0)+'%';
+  document.getElementById('kpi-cvr').textContent=(clk>0?(app/clk*100).toFixed(1):0)+'% click-to-apply';
+  document.getElementById('kpi-open').textContent=openJ;
+  document.getElementById('kpi-closed').textContent=closedJ+' closed posting'+(closedJ!==1?'s':'');
+  document.getElementById('kpi-ar').textContent=(imp>0?(app/imp*100).toFixed(2):0)+'%';
+}
+
+function renderWeekly() {
+  const rows=filtered();
+  const byWeek={};
+  rows.forEach(r=>{ if(!r._date||isNaN(r._date)) return; const d=new Date(r._date); d.setDate(d.getDate()-d.getDay()+1); const k=d.toLocaleDateString('en-MY',{month:'short',day:'numeric'}); if(!byWeek[k])byWeek[k]={label:k,clicks:0,applies:0,_d:d}; byWeek[k].clicks+=r._clicks; byWeek[k].applies+=r._applies; });
+  const data=Object.values(byWeek).sort((a,b)=>a._d-b._d);
+  if(!data.length){document.getElementById('weekly-chart').innerHTML='<text x="280" y="80" fill="#666" text-anchor="middle" font-size="12">No data for selected filters</text>';return;}
+  const svg=document.getElementById('weekly-chart');
+  const W=560,H=160,pL=30,pR=14,pT=14,pB=28,cW=W-pL-pR,cH=H-pT-pB;
+  const maxClk=Math.max(...data.map(d=>d.clicks),1), maxApp=Math.max(...data.map(d=>d.applies),1);
+  const x=i=>pL+(i/(Math.max(data.length-1,1)))*cW;
+  const yC=v=>pT+cH-(v/maxClk)*cH, yA=v=>pT+cH-(v/maxApp)*cH;
+  let out='';
+  for(let i=0;i<=4;i++){const y=pT+(i/4)*cH;out+=`<line x1="${pL}" y1="${y.toFixed(1)}" x2="${W-pR}" y2="${y.toFixed(1)}" stroke="#ffffff0a" stroke-width="1"/>`;}
+  out+=`<path d="${data.map((d,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${yC(d.clicks).toFixed(1)}`).join(' ')}" fill="none" stroke="#7ab4f0" stroke-width="2" opacity="0.7"/>`;
+  out+=`<path d="${data.map((d,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${yA(d.applies).toFixed(1)}`).join(' ')}" fill="none" stroke="#c9a84c" stroke-width="2.5"/>`;
+  data.forEach((d,i)=>{ out+=`<circle cx="${x(i).toFixed(1)}" cy="${yA(d.applies).toFixed(1)}" r="3" fill="#c9a84c"/>`; if(i%Math.ceil(data.length/8)===0) out+=`<text x="${x(i).toFixed(1)}" y="${H-6}" text-anchor="middle" fill="#b0a080" font-size="7.5">${d.label}</text>`; });
+  out+=`<rect x="${W-pR-105}" y="4" width="9" height="3" fill="#7ab4f0" rx="1"/><text x="${W-pR-92}" y="10" fill="#7ab4f0" font-size="8">Clicks</text><rect x="${W-pR-55}" y="4" width="9" height="3" fill="#c9a84c" rx="1"/><text x="${W-pR-42}" y="10" fill="#c9a84c" font-size="8">Applies</text>`;
+  svg.innerHTML=out;
+}
+
+function renderDonut() {
+  const rows=filtered();
+  const bd=Object.entries(groupBy(rows,r=>r.Brand)).map(([b,{rows:rs}])=>({brand:b,impressions:sumBy(rs,'_impressions'),applies:sumBy(rs,'_applies'),color:BRAND_COLORS[b]||'#888',label:BRAND_LABELS[b]||b})).filter(b=>b.impressions>0);
+  const total=bd.reduce((s,b)=>s+b.impressions,0)||1;
+  let angle=-Math.PI/2, paths='';
+  bd.forEach(b=>{ const pct=b.impressions/total,sweep=pct*2*Math.PI,cx=50,cy=50,r=40,inner=22; const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle),x2=cx+r*Math.cos(angle+sweep),y2=cy+r*Math.sin(angle+sweep),i1=cx+inner*Math.cos(angle),j1=cy+inner*Math.sin(angle),i2=cx+inner*Math.cos(angle+sweep),j2=cy+inner*Math.sin(angle+sweep),lg=sweep>Math.PI?1:0; paths+=`<path d="M${i1.toFixed(2)},${j1.toFixed(2)} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${lg} 1 ${x2.toFixed(2)},${y2.toFixed(2)} L${i2.toFixed(2)},${j2.toFixed(2)} A${inner},${inner} 0 ${lg} 0 ${i1.toFixed(2)},${j1.toFixed(2)}" fill="${b.color}" opacity="0.85"/>`;  angle+=sweep; });
+  paths+=`<text x="50" y="47" text-anchor="middle" fill="#c9a84c" font-size="9" font-weight="bold">${total.toLocaleString()}</text><text x="50" y="58" text-anchor="middle" fill="#b0a080" font-size="7">Impressions</text>`;
+  document.getElementById('donut-wrap').innerHTML=`<svg width="100" height="100" viewBox="0 0 100 100">${paths}</svg><div class="donut-legend">${bd.map(b=>`<div class="legend-item"><div class="legend-dot" style="background:${b.color}"></div><div><div style="font-size:0.65rem;color:#d0c8b0;font-weight:600;">${b.label}</div><div style="font-size:0.6rem;color:#888;">${b.impressions.toLocaleString()} · ${(b.impressions/total*100).toFixed(0)}% · ${b.applies} applies</div></div></div>`).join('')}</div>`;
+}
+
+function renderFunnel() {
+  const rows=filtered();
+  const steps=[{step:'Impressions',value:sumBy(rows,'_impressions'),color:'#c9a84c'},{step:'Clicks',value:sumBy(rows,'_clicks'),color:'#e8a84c'},{step:'Apply Starts',value:sumBy(rows,'_applyStarts'),color:'#e8784c'},{step:'Completed Applies',value:sumBy(rows,'_applies'),color:'#4cc97a'}];
+  const max=steps[0].value||1;
+  document.getElementById('funnel').innerHTML=steps.map((f,i)=>{const pct=(f.value/max*100).toFixed(0);return `<div class="funnel-step"><div class="funnel-label">${f.step} <span style="color:#666">${i===0?'100% baseline':(f.value/max*100).toFixed(1)+'% of impressions'}</span></div><div class="funnel-bar" style="width:${Math.max(+pct,18)}%;background:${f.color}20;border:1px solid ${f.color}55;color:${f.color};">${f.value.toLocaleString()}</div></div>`;}).join('');
+}
+
+function renderDOW() {
+  const rows=filtered();
+  const byDay={};
+  DOW_ORDER.forEach(d=>byDay[d]={applies:0,clicks:0});
+  rows.forEach(r=>{ if(!r._date||isNaN(r._date))return; const day=r._date.toLocaleString('default',{weekday:'short'}); if(byDay[day]){byDay[day].applies+=r._applies;byDay[day].clicks+=r._clicks;} });
+  const data=DOW_ORDER.map(d=>({day:d,...byDay[d]}));
+  const max=Math.max(...data.map(d=>d.applies),1);
+  const best=data.reduce((a,b)=>b.applies>a.applies?b:a);
+  document.getElementById('dow-chart').innerHTML=data.map(d=>`<div class="bar-row"><div class="bar-label">${d.day}</div><div class="bar-track"><div class="bar-fill" style="width:${(d.applies/max*100).toFixed(0)}%;background:linear-gradient(90deg,#c9a84c77,#c9a84c);"></div></div><div class="bar-val">${d.applies}</div></div>`).join('');
+  document.getElementById('dow-insight').innerHTML=`💡 <b>${best.day}</b> gets the most applies (${best.applies}). Refresh posts on the weekend for peak ${best.day} visibility.`;
+}
+
+function renderTopJobs() {
+  const rows=filtered();
+  const byJob=groupBy(rows,r=>r.Job);
+  const jobs=Object.values(byJob).map(({key,rows:rs})=>({job:key,brand:rs[0].Brand,applies:sumBy(rs,'_applies')})).sort((a,b)=>b.applies-a.applies).slice(0,7);
+  const max=Math.max(...jobs.map(j=>j.applies),1);
+  document.getElementById('top-jobs-chart').innerHTML=jobs.map(j=>{const t=j.job.length>32?j.job.slice(0,31)+'…':j.job;const c=BRAND_COLORS[j.brand]||'#888';return `<div class="bar-row"><div class="bar-label" title="${j.job}">${t}</div><div class="bar-track"><div class="bar-fill" style="width:${(j.applies/max*100).toFixed(0)}%;background:${c}99;"></div></div><div class="bar-val">${j.applies}</div></div>`;}).join('');
+}
+
+function renderTable() {
+  const rows=filtered();
+  const byJob=groupBy(rows,r=>r.Job);
+  const jobs=Object.values(byJob).map(({key,rows:rs})=>({job:key,brand:rs[0].Brand,post:rs[0]['Job post'],status:rs[0]['Job status'],impressions:sumBy(rs,'_impressions'),clicks:sumBy(rs,'_clicks'),applyStarts:sumBy(rs,'_applyStarts'),applies:sumBy(rs,'_applies')})).sort((a,b)=>b.applies-a.applies);
+  document.getElementById('job-table-body').innerHTML=jobs.map(j=>{const ctr=j.impressions>0?(j.clicks/j.impressions*100).toFixed(1)+'%':'-';const ar=j.impressions>0?(j.applies/j.impressions*100).toFixed(2)+'%':'-';const signal=j.applies===0?'⚠️ No applies yet':j.applies>=30?'🔥 High performer':j.applies>=10?'✅ Performing well':j.applies>=5?'📈 Average':'📊 Low apply';return `<tr><td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${j.job}">${j.job}</td><td><span class="brand-tag brand-${j.brand}">${j.brand}</span></td><td style="font-size:0.6rem;">${j.post}</td><td><span class="${j.status==='Open'?'status-open':'status-closed'}">${j.status}</span></td><td>${j.impressions.toLocaleString()}</td><td>${j.clicks.toLocaleString()}</td><td style="color:#c9a84c;">${ctr}</td><td style="color:#e8a84c;">${j.applyStarts}</td><td style="color:#7af0b4;font-weight:700;">${j.applies}</td><td style="color:#b0a080;">${ar}</td><td>${signal}</td></tr>`;}).join('');
+}
+
+function renderAll() { renderKPIs(); renderWeekly(); renderDonut(); renderFunnel(); renderDOW(); renderTopJobs(); renderTable(); }
+loadData();
+</script>
+</body>
+</html>
